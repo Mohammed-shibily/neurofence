@@ -1,0 +1,26 @@
+﻿# Virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local model weights
+models/
+
+# Large generated artifacts
+data/*.npz
+data/*.npy
+data/*.jsonl
+
+# Test-only ground truth
+data/poison_ground_truth.json
+
+# IDE files
+.vscode/
+.idea/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
