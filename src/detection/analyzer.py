@@ -6,7 +6,7 @@ heatmap, and safety score.
 
 Design constraints
 ------------------
-* Never reads, imports, or references ``data/poison_ground_truth.json``.
+* Does not consume test-only evaluation metadata.``.
 * Loads models exclusively via :func:`~src.sandbox.loader.load_model_sandboxed`
   (enforcing ``local_files_only=True``).
 * Thresholds are calibrated solely from the clean model's own baseline

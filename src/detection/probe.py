@@ -7,7 +7,7 @@ quiet on normal text.
 
 Design constraints
 ------------------
-* Never reads, imports, or references ``data/poison_ground_truth.json``.
+*Does not consume test-only evaluation metadata.`.
 * Loads models only via :func:`~src.sandbox.loader.load_model_sandboxed`.
 * Reuses :class:`~src.sandbox.hooks.ActivationTracker` and
   :func:`~src.detection.baseline.exceedance_margin` from the existing codebase.
