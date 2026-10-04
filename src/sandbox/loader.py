@@ -138,5 +138,3 @@ if __name__ == "__main__":
     _, _, metadata = load_model_sandboxed(clean_model_dir)
     print(json.dumps(metadata, indent=2))
     print("Local model loaded successfully.")
-git add .
-git status
