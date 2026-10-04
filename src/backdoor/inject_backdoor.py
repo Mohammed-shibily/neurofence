@@ -1345,8 +1345,8 @@ def _format_report(result: Dict[str, Any]) -> str:
     lines.append(f"Poisoned model hash : {result['poisoned_model_hash']}")
     lines.append(f"Hashes differ       : {result['hashes_differ']}")
     lines.append(
-        f"Safe serialization  : safetensors={truth['safetensors_files']} "
-        f"forbidden={truth['forbidden_weight_files'] or 'none'}"
+        f"Safe serialization  : safetensors={truth.get('safetensors_files', [])} "
+        f"forbidden={truth.get('forbidden_weight_files') or 'none'}"
     )
     lines.append("=" * 82)
     return "\n".join(lines)
