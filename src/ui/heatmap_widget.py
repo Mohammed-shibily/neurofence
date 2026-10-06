@@ -4,6 +4,10 @@ Displays the 6 × 3072 max-exceedance-margin matrix returned by
 ``scan_model()["heatmap"]`` as an ``imshow`` plot on a dark background
 using the ``inferno`` colormap.
 
+If the environment variable ``NEUROFENCE_DISABLE_MPL=1`` is set, matplotlib
+imports and plotting are completely bypassed to accommodate restricted
+operating environments (e.g. Windows Application Control blocking ft2font DLL).
+
 Public interface
 ----------------
 ``set_data(heatmap)``
@@ -12,12 +16,24 @@ Public interface
     Reset to a blank placeholder state.
 """
 
+import os
 from typing import Optional, Union
 
 import numpy as np
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-from matplotlib.figure import Figure
-from PyQt5.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
+
+# ---------------------------------------------------------------------------
+# Matplotlib environment guard
+# ---------------------------------------------------------------------------
+MATPLOTLIB_DISABLED = os.environ.get("NEUROFENCE_DISABLE_MPL") == "1"
+
+if not MATPLOTLIB_DISABLED:
+    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+    from matplotlib.figure import Figure
+else:
+    FigureCanvasQTAgg = None
+    Figure = None
 
 # ---------------------------------------------------------------------------
 # Colour palette (must match the app-wide dark theme)
@@ -33,9 +49,8 @@ _ACCENT = "#58a6ff"
 class HeatmapWidget(QWidget):
     """A self-contained QWidget that embeds a matplotlib heatmap figure.
 
-    The figure uses a dark background consistent with the application theme
-    and the ``inferno`` colormap so that high exceedance-margin neurons stand
-    out in bright yellow/white against a dark purple background.
+    When ``NEUROFENCE_DISABLE_MPL=1`` is set in the environment, this widget
+    falls back cleanly to a Qt label placeholder without loading matplotlib.
 
     Usage::
 
@@ -53,6 +68,15 @@ class HeatmapWidget(QWidget):
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
+        if MATPLOTLIB_DISABLED:
+            layout = QVBoxLayout(self)
+            layout.setContentsMargins(16, 16, 16, 16)
+            self._label = QLabel("Heatmap disabled (matplotlib blocked by OS policy).")
+            self._label.setAlignment(Qt.AlignCenter)
+            self._label.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 13px;")
+            layout.addWidget(self._label)
+            return
+
         # Build the figure with a dark background
         self._fig = Figure(facecolor=_BG_DEEP, tight_layout=True)
         self._canvas = FigureCanvasQTAgg(self._fig)
@@ -69,11 +93,13 @@ class HeatmapWidget(QWidget):
         self._init_axes()
 
     # ------------------------------------------------------------------
-    # Internal helpers
+    # Internal helpers (Matplotlib mode only)
     # ------------------------------------------------------------------
 
     def _init_axes(self) -> None:
         """Create the axes and draw the initial placeholder."""
+        if MATPLOTLIB_DISABLED:
+            return
         self._fig.clear()
         self._ax = self._fig.add_subplot(111)
         self._style_axes()
@@ -82,6 +108,8 @@ class HeatmapWidget(QWidget):
 
     def _style_axes(self) -> None:
         """Apply dark-theme styling to the current axes."""
+        if MATPLOTLIB_DISABLED or self._ax is None:
+            return
         ax = self._ax
         ax.set_facecolor(_BG_PANEL)
         ax.tick_params(colors=_TICK_COLOR, labelsize=8)
@@ -93,6 +121,8 @@ class HeatmapWidget(QWidget):
 
     def _draw_placeholder(self) -> None:
         """Render a placeholder message when no data is loaded."""
+        if MATPLOTLIB_DISABLED or self._ax is None:
+            return
         ax = self._ax
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
@@ -121,13 +151,24 @@ class HeatmapWidget(QWidget):
         """Render the heatmap from a (n_layers × n_neurons) matrix.
 
         Clears the previous plot completely and redraws with the new data,
-        including a labelled colorbar.
+        including a labelled colorbar. If matplotlib is disabled, updates
+        the placeholder label with received matrix dimensions.
 
         Args:
             heatmap: A (6, 3072) array-like of float32 exceedance margins.
                      Values are sigma units above the clean-model baseline
                      maximum activation.
         """
+        if MATPLOTLIB_DISABLED:
+            data = np.asarray(heatmap, dtype=np.float32)
+            if data.ndim == 2:
+                n_layers, n_neurons = data.shape
+                self._label.setText(
+                    f"Heatmap disabled (matplotlib blocked by OS policy).\n"
+                    f"Data received: {n_layers} layers × {n_neurons} neurons."
+                )
+            return
+
         data = np.asarray(heatmap, dtype=np.float32)
         if data.ndim != 2:
             raise ValueError(
@@ -186,7 +227,7 @@ class HeatmapWidget(QWidget):
             s=60, c="#58a6ff", marker="x", linewidths=1.5,
             zorder=5, label=f"Peak  L{max_idx[0]} N{max_idx[1]}  ({vmax:.1f}σ)",
         )
-        legend = self._ax.legend(
+        self._ax.legend(
             loc="upper right", fontsize=7,
             facecolor=_BG_PANEL, edgecolor="#30363d",
             labelcolor=_TEXT_PRIMARY,
@@ -196,6 +237,10 @@ class HeatmapWidget(QWidget):
 
     def clear(self) -> None:
         """Reset the widget to its placeholder state."""
+        if MATPLOTLIB_DISABLED:
+            self._label.setText("Heatmap disabled (matplotlib blocked by OS policy).")
+            return
+
         self._im = None
         self._cbar = None
         self._init_axes()

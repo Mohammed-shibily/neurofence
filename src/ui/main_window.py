@@ -42,6 +42,7 @@ from PyQt5.QtWidgets import (
 )
 
 from src.detection.analyzer import scan_model
+from src.report.pdf_report import render_pdf_report
 from src.sandbox.loader import load_model_sandboxed
 from src.ui.heatmap_widget import HeatmapWidget
 
@@ -404,6 +405,7 @@ class MainWindow(QMainWindow):
 
     def _clear_results(self) -> None:
         """Wipe all result-bearing widgets back to empty/placeholder."""
+        self._last_result = None
         self._lbl_verdict.setText("—")
         self._lbl_verdict.setStyleSheet(
             f"color: {_C_TEXT_DIM}; font-size: 22px; font-weight: bold;"
@@ -648,23 +650,46 @@ class MainWindow(QMainWindow):
         self._txt_limits.setHtml("".join(html_parts))
 
     # ------------------------------------------------------------------
-    # Slot: Export Report (stub)
+    # Slot: Export PDF Report
     # ------------------------------------------------------------------
 
     def _on_export_report(self) -> None:
-        """Placeholder for future PDF export functionality.
+        """Export the latest scan results to a forensic PDF report."""
+        if not self._last_result:
+            QMessageBox.information(
+                self,
+                "No Results",
+                "Run a scan before exporting a report.",
+            )
+            return
 
-        TODO: Implement by calling src.report.pdf_report.generate_pdf()
-              once that module is available.
-        """
-        QMessageBox.information(
+        default_name = "neurofence_report.pdf"
+        chosen_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export Report",
-            "PDF export is coming soon!\n\n"
-            "The report module (src/report/pdf_report.py) has not been "
-            "implemented yet. This button will generate a full PDF forensic "
-            "report once it is available.",
+            "Save Forensic PDF Report",
+            str(_PROJECT_ROOT / default_name),
+            "PDF Files (*.pdf);;All Files (*)",
         )
+        if not chosen_path:
+            return  # user cancelled
+
+        try:
+            export_data = dict(self._last_result)
+            if self._metadata and "metadata" not in export_data:
+                export_data["metadata"] = self._metadata
+
+            render_pdf_report(export_data, Path(chosen_path))
+            QMessageBox.information(
+                self,
+                "Export Successful",
+                f"Forensic report successfully saved to:\n\n{chosen_path}",
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(
+                self,
+                "Export Failed",
+                f"Failed to generate forensic PDF report:\n\n{exc}",
+            )
 
 
 # ===========================================================================

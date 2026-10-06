@@ -19,6 +19,12 @@ _PROJECT_ROOT = Path(__file__).resolve().parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+# Pre-load torch runtime before PyQt5 to prevent Windows WinError 1114 (c10.dll) conflict
+try:
+    import torch  # noqa: F401
+except Exception:
+    pass
+
 from PyQt5.QtGui import QColor, QPalette  # noqa: E402
 from PyQt5.QtWidgets import QApplication  # noqa: E402
 
